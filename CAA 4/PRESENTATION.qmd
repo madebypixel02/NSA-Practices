@@ -1,0 +1,108 @@
+---
+title: "Disaster Recovery"
+subtitle: "Deepening Activity"
+author: Alejandro Pérez Bueno
+date: today
+date-format: "MMM DD, YYYY"
+link-citations: true
+link-bibliography: true
+bibliography: references.bib
+nocite: |
+  @fastercapital, @druva2021, @ibm2021, @umsystem2021, @readygov2021, @atlassian2021
+preview-links: auto
+format:
+  revealjs:
+    incremental: true
+    slide-number: true
+    show-slide-number: print
+    chalkboard: true
+---
+
+## Introduction to Disaster Recovery
+
+::: {.fade-in .incremental}
+* In today's interconnected world, data and technology are essential for businesses.
+* Disruptions like disasters, cyberattacks, and failures can bring operations to a halt.
+* Disaster Recovery (DR) helps organizations bounce back from these events, minimizing downtime and data loss.
+:::
+
+## Why Disaster Recovery Planning is Crucial
+
+::: {.fade-in .incremental}
+* **Business Continuity:** Ensures rapid resumption of critical functions, minimizing downtime and maintaining competitiveness.
+* **Data Protection:** Emphasizes data protection through backups, storage solutions, and recovery processes.
+* **Reputation Management:** Minimizes reputational risks arising from disruptions, safeguarding brand image.
+:::
+
+## Why Disaster Recovery Planning is Crucial
+
+::: {.fade-in .incremental}
+* **Financial Stability:** Reduces financial losses by mitigating the impact of disasters and data recovery costs.
+* **Regulatory Compliance:** Ensures compliance with data protection and business continuity regulations.
+:::
+
+## Business Continuity Planning
+
+::: {.fade-in .incremental}
+* A **Disaster Recovery Plan (DRP)** outlines steps to resume operations swiftly and minimize disruption impact.
+* **Business Impact Analysis (BIA):** Identifies critical functions, assesses downtime impact, and prioritizes recovery efforts.
+* **Risk Assessment (RA):** Identifies potential threats, analyzes their likelihood and impact, and develops mitigation strategies.
+:::
+
+## Recovery Objectives and Data Protection
+
+::: {.fade-in .incremental}
+* **Recovery Time Objective (RTO):** Maximum acceptable downtime for a critical function after a disruption.
+* **Recovery Point Objective (RPO):** Maximum acceptable data loss an organization can tolerate.
+* **Data Backup and Restoration:** Defines backup strategies, locations, and restoration processes to safeguard data.
+:::
+
+## Disaster Recovery Sites and Communication
+
+::: {.fade-in .incremental}
+* **Hot Site:** Fully equipped replica of the primary data center for immediate failover.
+* **Warm Site:** Partially equipped facility requiring additional setup time.
+* **Cold Site:** Basic facility needing significant time and effort for configuration.
+* **Communication and Alerting:** Establishes internal and external communication protocols and alerting systems.
+:::
+
+## Building a Successful Disaster Recovery Strategy
+
+::: {.fade-in .incremental}
+1. **Thorough BIA:** Identify and prioritize critical business operations.
+2. **Comprehensive Risk Assessment:** Evaluate potential threats and their impact.
+3. **Detailed Asset Inventory:** Catalog IT assets based on criticality.
+4. **Establish RTOs and RPOs:** Define acceptable downtime and data loss.
+:::
+
+## Building a Successful Disaster Recovery Strategy
+
+::: {.fade-in .incremental}
+5. **Develop Recovery Strategies:** Outline procedures for recovering systems and data.
+6. **Assign Roles and Responsibilities:** Define roles for disaster recovery team members.
+7. **Document the DRP:** Create a comprehensive and accessible plan.
+8. **Regular Testing and Refinement:** Conduct drills and simulations, update the plan based on findings.
+:::
+
+## Disaster Recovery in a DevOps World
+
+::: {.fade-in .incremental}
+* **Traditional DR planning** needs adaptation for dynamic DevOps environments.
+* **Continuous Data Protection:** Shift from snapshots to real-time or near real-time data protection.
+* **Integrated Testing:** Include DR testing in the CI/CD pipeline.
+* **Immutable Infrastructure:** Leverage infrastructure-as-code and containerization for easy replacement.
+:::
+
+## Conclusion
+
+::: {.fade-in .incremental}
+* Disaster recovery is crucial for business continuity in the digital age.
+* Proactive planning, robust solutions, and a culture of resilience are essential.
+* Embrace emerging technologies and adapt strategies to navigate the evolving threat landscape.
+* By prioritizing disaster recovery, organizations can transform potential crises into opportunities for growth.
+:::
+
+## References
+
+::: {#refs}
+:::

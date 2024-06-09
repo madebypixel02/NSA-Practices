@@ -1,0 +1,372 @@
+---
+title: "Final Project"
+author: Alejandro Pérez Bueno
+date: today
+date-format: "MMM DD, YYYY"
+toc: true
+toc-title: "Table of Contents"
+linkcolor: blue
+documentclass: report
+link-citations: true
+link-bibliography: true
+nocite: |
+  @fastercapital, @druva2021, @ibm2021, @umsystem2021, @readygov2021, @atlassian2021
+preview-links: auto
+format:
+  gfm: default
+  pdf:
+    linestretch: 1.25
+    geometry:
+      - top=30mm
+      - left=20mm
+      - heightrounded
+    include-in-header:
+      text: |
+        \usepackage{fancyhdr}
+          \pagestyle{fancy}
+          \fancyhead[R]{HOST 192.168.1.206 GUEST 192.168.122.175}
+          \fancyfoot{}
+          \fancyfoot[C]{\thepage}
+---
+
+{{< pagebreak >}}
+
+## OS Setup and user creation
+
+### Install OS into the VM
+
+First and foremost, we need the following:
+
+1. A Linux Server ISO image. I downloaded mine from here: [https://ubuntu.com/download/server](https://ubuntu.com/download/server).
+2. A Virtualization Program. I typically use [`virt-manager`](https://virt-manager.org/), a well-known QEMU/KVM client for Linux.
+
+You then set up the VM specifying:
+
+- RAM usage
+- CPU cores
+- Virtual disk space
+- Specify other hardware (input devices, GPU acceleration, USB redireccion)
+
+See @fig-ubuntu-install.
+
+Then we must run the ISO installer to setup:
+
+- Language setup
+- Network
+- Base packages
+- User creation
+
+See @fig-live-boot.
+
+::: {.callout-note}
+
+The live installer has some policy that prevents uppercase characters in the hostname. Thus, I had to set up the correct hostname *after* the initial installation. See @fig-set-hostname.
+
+:::
+
+{{< pagebreak >}}
+
+#### Evidence
+
+::: {.callout-warning}
+For ease of use, from this point on I will ssh into the guest machine so I can more easily manage the VM from the host. To set it up, I did the folloing:
+
+```bash
+sudo apt update                  #<1>
+sudo apt install ssh             #<2>
+sudo nano /etc/ssh/ssh_config    #<3>
+sudo ufw allow 22                #<4>
+sudo systemctl enable --now ssh  #<5>
+```
+1. Update repositories
+2. Install `ssh`
+3. Open port 22 to allow ssh on that port
+4. Add firewall rule to allow ssh to go through it
+5. Start ssh service and set it to start on boot
+
+Then, all I had to do is:
+
+1. Find guest IP (run `ip a` from guest)
+2. Access it from the host. See @fig-ssh
+
+:::
+
+- Host IP: *192.168.1.206*
+- Guest IP: *192.168.122.175*
+
+See @fig-ping to verify that I can access the guest Ubuntu Server from my host machine.
+
+### User creation
+
+The simplest way to create four users and set their passwords to automatically expire every year is with a small shell script:
+
+```{.bash filename="user_creation.sh"}
+#!/bin/bash
+
+for i in {1..4}                                              #<1>
+do                                                           #<1>
+  username="user$(printf '%02d' $i)"                         #<2>
+  sudo useradd $username                                     #<3>
+  echo "User $username created"                              #<3>
+
+  sudo chage --maxdays 365 $username                         #<4>
+  echo "Password for $username set to expire every year!"    #<4>
+done                                                         #<1>
+```
+1. Loop over four users to create and modify their password policy
+2. Dynamically change username to `user` + `[01..04]`
+3. Create user
+4. Set password to reset after 365 days (every year) for the previously created user
+
+See @fig-bash-user-year.
+
+#### Evidence
+
+```{.bash filename="user_info.sh"}
+#!/bin/bash
+
+for i in {1..4}
+do
+  username="user$(printf '%02d' $i)"
+  sudo chage -l $username
+done
+```
+
+See @fig-bash-user-info.
+
+## Services stack
+
+### Server postgres
+
+#### Install *docker* and *docker-compose*
+
+Following the [official documentation](https://docs.docker.com/engine/install/ubuntu/#installation-methods):
+
+```bash
+# Add Docker's official GPG key:
+sudo apt-get update
+sudo apt-get install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+  -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources:
+echo \
+  "deb [arch=$(dpkg --print-architecture) \
+    signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+
+# Install docker
+sudo apt-get install docker-ce docker-ce-cli \
+  containerd.io docker-buildx-plugin docker-compose-plugin
+
+## Run a test container
+sudo docker run hello-world
+```
+
+#### Configuring a service stack with docker compose
+
+```bash
+git clone https://github.com/jestebangr/prac20232-orig.git
+```
+
+My resulting docker compose file:
+
+```{.yaml filename=docker-compose.yaml}
+version: '3.9'
+
+services:
+  db:
+    image: postgres:16.2
+    container_name: dbhost
+    ports:                                                        #<1>
+      - "5432:5432"                                               #<1>
+    environment:                                                  #<2>
+      POSTGRES_DB: ${POSTGRES_DB}                                 #<2>
+      POSTGRES_USER: ${POSTGRES_USER}                             #<2>
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}                     #<2>
+    volumes:                                                      #<3>
+      - postgres_data:/var/lib/postgresql/data                    #<3>
+      - ./dataset/init.sql:/docker-entrypoint-initdb.d/init.sql   #<4>
+
+volumes:                                                          #<5>
+  postgres_data:                                                  #<5>
+```
+1. Add a ports configuration to expose Postgres default port (5432) to the host
+2. Use environment variables to configure the database without hardcoding sensitive information
+3. Define a volume to ensure data persistence
+4. To load the init.sql file automatically, use the docker-entrypoint-initdb.d directory which is automatically executed during container startup
+5. Define the named volume
+
+::: {.callout-note}
+It is necessary to set the credentials related to postgress before running the docker container in an env file:
+
+```{.env filename=".env"}
+POSTGRES_DB="uoc2023"
+POSTGRES_USER="aperez-b"
+POSTGRES_PASSWORD="1234"
+```
+:::
+
+#### Evidence
+
+```bash
+cat docker-compose.yml
+```
+
+See @fig-ex2-docker-compose.
+
+```bash
+sudo docker ps
+```
+
+See @fig-ex2-docker-ps.
+
+```bash
+sudo netstat -a | grep postgresql
+```
+
+See @fig-ex2-netstat.
+
+```bash
+nmap -p- --open -n 192.168.122.175
+```
+
+See @fig-ex2-nmap.
+
+```bash
+psql -h localhost -p 5432 -U aperez-b -d uoc2023
+```
+
+See @fig-ex2-psql.
+
+### Web Server Deno
+
+#### Evidence
+
+```bash
+cat docker-compose.yml
+```
+
+See @fig-ex2-docker-compose-2.
+
+```bash
+cat Dockerfile
+```
+
+See @fig-ex2-dockerfile.
+
+```bash
+sudo docker ps
+```
+
+See @fig-ex2-docker-ps-2.
+
+- Webhost connection: see @fig-ex2-deno-web.
+
+## Reverse Proxy
+
+See @fig-ex3-http-evidence and @fig-ex3-https-evidence.
+
+{{< pagebreak >}}
+
+## Annexes
+
+::: {#fig-ubuntu-install layout-ncol=2}
+
+![Select ISO](./img/setup-iso.png){#fig-setup-iso}
+
+![Set number of CPUs and RAM capacity](./img/setup-cpu.png){#fig-setup-cpu}
+
+![Create virtual disk](./img/setup-disk.png){#fig-setup-disk}
+
+![Finish installation](./img/setup-finish.png){#fig-setup-finish}
+
+Ubuntu Installation
+:::
+
+::: {#fig-live-boot layout-ncol=2}
+
+![Live Boot](./img/install-boot.png){#fig-live-boot-1}
+
+![Language Setup](./img/install-language.png){#fig-live-language}
+
+![User setup with UOC information](./img/install-user.png){#fig-live-user}
+
+![Install complete](./img/install-complete.png){#fig-live-complete}
+
+Live Boot configuration
+:::
+
+![Set hostname to ARSO20232 in the guest](./img/install-hostname.png){#fig-set-hostname width=80%}
+
+![ssh into guest machine](./img/ssh.png){#fig-ssh width=80%}
+
+![Ping guest machine](./img/ping.png){#fig-ping width=80%}
+
+::: {#fig-bash-user layout-ncol=2}
+
+![User creation and password policy script](./img/bash-user-year.png){#fig-bash-user-year width=80%}
+
+![sudo chage -l userXX](./img/bash-user-info.png){#fig-bash-user-info}
+
+:::
+
+::: {#fig-ex2-evidence layout-ncol=2}
+
+![`cat docker-compose.yaml`](./img/ex2-docker-compose.png){#fig-ex2-docker-compose}
+
+![`sudo docker ps`](./img/ex2-docker-ps.png){#fig-ex2-docker-ps}
+
+![`sudo netstat -a | grep postgresql`](./img/ex2-netstat.png){#fig-ex2-netstat}
+
+![`nmap -p- --open -n 192.168.122.175`](./img/ex2-nmap.png){#fig-ex2-nmap}
+
+![`psql -h localhost -p 5432 -U aperez-b -d uoc2023`](./img/ex2-psql.png){#fig-ex2-psql}
+
+Evidences for `postgres` server
+:::
+
+::: {#fig-ex2-evidence-2 layout-ncol=2}
+
+![`cat docker-compose.yaml`](./img/ex2-docker-compose-2.png){#fig-ex2-docker-compose-2}
+
+![`cat Dockerfile`](./img/ex2-dockerfile.png){#fig-ex2-dockerfile}
+
+![`sudo docker ps`](./img/ex2-docker-ps-2.png){#fig-ex2-docker-ps-2}
+
+![Deno Web](./img/ex2-deno-web.png){#fig-ex2-deno-web}
+
+Evidences for `postgres` + `Deno` server
+:::
+
+::: {#fig-ex3-http-evidence layout-ncol=2}
+
+![`cat reverse-proxy/Dockerfile; cat reverse-proxy/haproxy.cfg; cat docker-compose.yml`](./img/ex3-http-cat.png){#fig-ex3-http-cat}
+
+![`sudo netstat -a | grep http`](./img/ex3-netstat.png){#fig-ex3-netstat}
+
+![`sudo nmap -p- --open --min-rate=5000 -Pn -v -sS -n localhost`](./img/ex3-nmap.png){#fig-ex3-nmap}
+
+![`curl -I http://192.168.122.175`](./img/ex3-curl.png){#fig-ex3-curl}
+
+Evidences for `reverse-proxy` HTTP
+:::
+
+::: {#fig-ex3-https-evidence layout-ncol=2}
+
+![`cat reverse-proxy/Dockerfile; cat reverse-proxy/haproxy.cfg`](./img/ex3-https-cat.png){#fig-ex3-cat}
+
+![`sudo docker ps`](./img/ex3-docker-ps.png){#fig-e3-docker-ps}
+
+![`sudo netstat -a | grep http`](./img/ex3-netstat.png){#fig-ex3-netstat}
+
+![`sudo nmap -p- --open --min-rate=5000 -Pn -v -sS -n localhost`](./img/ex3-nmap.png){#fig-ex3-nmap}
+
+![`curl -I http://192.168.122.175`](./img/ex3-curl.png){#fig-ex3-curl}
+
+Evidences for `reverse-proxy` HTTPS
+:::
